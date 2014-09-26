@@ -17,8 +17,6 @@ import sys
 # Configure the name of your bucket here:
 s3_bucket_name = 'gather-files'
 s3_file_key = 'restaurants-no-cuisine'
-s3_bucket = None
-s3_key = None
 
 # Query Configuration
 #
@@ -38,6 +36,9 @@ task_text = 'You are very close to a restaurant called "{name}". Wht kind of res
 # ----------------------------
 
 # connect to s3
+s3_bucket = None
+s3_key = None
+
 print "Connecting to your S3 bucket {name}".format(name=s3_bucket_name)
 try:
     s3 = boto.connect_s3()
@@ -69,10 +70,10 @@ for elem in result['elements']:
     record.append(task_text.format(**substitutions))
     records.append('^'.join(record))
 
-# write to bucket
+# write to bucket and set the file to public-readable
 print "Writing to your S3 bucket..."
 s3_key.set_contents_from_string('\n'.join(records))
+s3_key.set_acl('public-read')
 
-print "The data is now available at {url}".format(url=s3_key.generate_url(expires_in=0, query_auth=False))
-
+print "The data is now publicly available at {url}".format(url=s3_key.generate_url(expires_in=0, query_auth=False))
 print "Done."
