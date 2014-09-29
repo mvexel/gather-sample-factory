@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from overpass import Overpass
 import boto
 import uuid
@@ -16,7 +19,7 @@ import sys
 # Then, create your bucket using the command line tools or the manager interface.
 # Configure the name of your bucket here:
 s3_bucket_name = 'gather-files'
-s3_file_key = 'restaurants-no-cuisine'
+s3_file_key = 'restaurants-no-cuisine.csv'
 
 # Query Configuration
 #
@@ -29,7 +32,7 @@ overpass_query = 'node["amenity"="restaurant"]["cuisine"!~"."](area:3600161993);
 # Set the text associated with each task here. You can use standard Python string formatting placeholders.
 # Each placeholder will be substituted with the value of the tag with that key. So for example, if you
 # have a placeholder {name}, it will be substituted with the name=* value for that OSM element.
-task_text = 'You are very close to a restaurant called "{name}". Wht kind of restaurant is it?'
+task_text = u'You are very close to "{name}". What kind of restaurant is it?'
 
 # ----------------------------
 # End of Configuration section
@@ -43,7 +46,7 @@ print "Connecting to your S3 bucket {name}".format(name=s3_bucket_name)
 try:
     s3 = boto.connect_s3()
     s3_bucket = s3.get_bucket(s3_bucket_name)
-    s3_key = boto.s3.key.Key(s3_bucket)
+    s3_key = boto.s3.key.Key(bucket=s3_bucket)
     s3_key.key = s3_file_key
 except Exception as e:
     print "Something went wrong connecting to your S3 bucket. Please check your parameters. Below is the full error message."
@@ -63,16 +66,16 @@ records = []
 
 for elem in result['elements']:
     record = []
-    substitutions = dict(zip(string_replacement_keys, [elem['tags'].get(k, "").encode('utf-8') for k in string_replacement_keys]))
+    substitutions = dict(zip(string_replacement_keys, [elem['tags'].get(k, "") for k in string_replacement_keys]))
     record.append(str(uuid.uuid4()))  # UUID as unique identifier
     record.append(Point(elem['lon'], elem['lat']).wkb.encode('hex'))  # OSM point geometry as WKB
     record.append(str(elem.get('id', 0)))  # OSM ID
     record.append(task_text.format(**substitutions))
-    records.append('^'.join(record))
+    records.append(u'^'.join(record))
 
 # write to bucket and set the file to public-readable
 print "Writing to your S3 bucket..."
-s3_key.set_contents_from_string('\n'.join(records))
+s3_key.set_contents_from_string('\n'.join(records), headers={'Content-Type': 'text/plain; charset=utf-8'})
 s3_key.set_acl('public-read')
 
 print "The data is now publicly available at {url}".format(url=s3_key.generate_url(expires_in=0, query_auth=False))
